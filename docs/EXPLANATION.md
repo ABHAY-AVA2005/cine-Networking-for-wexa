@@ -1,5 +1,12 @@
 # CineGraph - Architectural & Engineering Breakdown
 
+> **Note on scope:** the sections below describe the full client/server design,
+> including the Next.js route handlers that back a live CognoDB deployment. The
+> code in this repository ships the client half of that design: a Vite SPA whose
+> `src/lib/api.ts` currently resolves against the in-memory engine in
+> `src/lib/graph.ts`, with the Cypher layer kept in `src/lib/db.ts`. See the
+> README for the deployed architecture.
+
 This document provides a technical deep-dive into the architectural decisions, graph data modeling rationale, Cypher query mechanics, security practices, and error handling strategies implemented in **CineGraph**.
 
 ---

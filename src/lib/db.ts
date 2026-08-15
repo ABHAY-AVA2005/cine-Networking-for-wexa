@@ -194,7 +194,10 @@ export async function getDriver() {
     _driver = neo4j.default.driver(uri, neo4j.default.auth.basic(user, password));
     return _driver;
   } catch (err) {
-    throw new Error(`Failed to connect to CognoDB: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(
+      `Failed to connect to CognoDB: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err }
+    );
   }
 }
 
@@ -210,7 +213,7 @@ export async function runQuery(
     return result.records.map((record: { toObject: () => Record<string, unknown> }) => record.toObject());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Query failed: ${message}`);
+    throw new Error(`Query failed: ${message}`, { cause: err });
   } finally {
     await session.close();
   }

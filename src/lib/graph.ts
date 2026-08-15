@@ -96,18 +96,20 @@ export function search(q: string, industryFilter?: string): Array<{ type: "perso
   const lower = q.toLowerCase().trim();
   if (!lower) return [];
 
+  const matchesIndustry = (industry: string) =>
+    !industryFilter || industryFilter === "all" || industry === industryFilter;
+
   const personResults = people
-    .filter((p) => p.name.toLowerCase().includes(lower))
+    .filter((p) => p.name.toLowerCase().includes(lower) && matchesIndustry(p.industry))
+    .slice(0, 10)
     .map((p) => ({ type: "person" as const, data: p }));
 
   const movieResults = movies
-    .filter((m) =>
-      m.title.toLowerCase().includes(lower) &&
-      (!industryFilter || industryFilter === "all" || m.industry === industryFilter)
-    )
+    .filter((m) => m.title.toLowerCase().includes(lower) && matchesIndustry(m.industry))
+    .slice(0, 10)
     .map((m) => ({ type: "movie" as const, data: m }));
 
-  return [...personResults, ...movieResults].slice(0, 20);
+  return [...personResults, ...movieResults];
 }
 
 // ── Person detail ───────────────────────────────────────────────────────────
@@ -134,18 +136,17 @@ export function getPersonDetail(id: string): PersonWithMovies | null {
   // Movies directed
   const directedMovieIds = directed.filter((r) => r.personId === id).map((r) => r.movieId);
 
-  const actedMovies = actedMovieIds.map(({ movieId, role }) => ({
-    ...(movieById.get(movieId) as Movie),
-    role,
-    isDirector: false,
-  }));
+  const actedMovies = actedMovieIds.flatMap(({ movieId, role }) => {
+    const movie = movieById.get(movieId);
+    return movie ? [{ ...movie, role, isDirector: false }] : [];
+  });
 
   const directedMovies = directedMovieIds
-    .filter((mid) => !actedMovieIds.find((a) => a.movieId === mid))
-    .map((mid) => ({
-      ...(movieById.get(mid) as Movie),
-      isDirector: true,
-    }));
+    .filter((mid) => !actedMovieIds.some((a) => a.movieId === mid))
+    .flatMap((mid) => {
+      const movie = movieById.get(mid);
+      return movie ? [{ ...movie, isDirector: true }] : [];
+    });
 
   const allMovieIds = new Set([
     ...actedMovieIds.map((a) => a.movieId),
@@ -197,14 +198,17 @@ export function getMovieDetail(id: string): MovieWithCast | null {
 
   const cast = actedIn
     .filter((r) => r.movieId === id)
-    .map((r) => ({
-      ...(personById.get(r.personId) as Person),
-      role: r.role,
-    }));
+    .flatMap((r) => {
+      const person = personById.get(r.personId);
+      return person ? [{ ...person, role: r.role }] : [];
+    });
 
   const directors = directed
     .filter((r) => r.movieId === id)
-    .map((r) => personById.get(r.personId) as Person);
+    .flatMap((r) => {
+      const person = personById.get(r.personId);
+      return person ? [person] : [];
+    });
 
   const genres = movieGenres.filter((r) => r.movieId === id).map((r) => r.genre);
 
@@ -336,9 +340,10 @@ export function getRecommendations(id: string): RecommendationResult[] {
   }
 
   // 2. For each co-star, get THEIR co-stars (2-hop)
-  const recMap = new Map<string, { count: number; viaNames: Set<string> }>();
+  const recMap = new Map<string, Set<string>>();
 
   for (const coStarId of directCoStarIds) {
+    const coStarName = personById.get(coStarId)?.name ?? coStarId;
     const coStarMovies = actedIn.filter((r) => r.personId === coStarId).map((r) => r.movieId);
     for (const movieId of coStarMovies) {
       const coStarPeople = actedIn.filter(
@@ -346,30 +351,24 @@ export function getRecommendations(id: string): RecommendationResult[] {
       );
       for (const rel of coStarPeople) {
         if (directCoStarIds.has(rel.personId)) continue; // already a direct co-star
-        if (!recMap.has(rel.personId)) {
-          recMap.set(rel.personId, { count: 0, viaNames: new Set() });
+        let viaNames = recMap.get(rel.personId);
+        if (!viaNames) {
+          viaNames = new Set();
+          recMap.set(rel.personId, viaNames);
         }
-        const entry = recMap.get(rel.personId)!;
-        entry.count += 1;
-        const coStarName = personById.get(coStarId)?.name ?? coStarId;
-        entry.viaNames.add(coStarName);
+        viaNames.add(coStarName);
       }
     }
   }
 
   return Array.from(recMap.entries())
-    .map(([personId, { count, viaNames }]) => {
+    .flatMap(([personId, viaNames]) => {
       const p = personById.get(personId);
-      if (!p) return null;
-      return {
-        ...p,
-        sharedConnections: count,
-        connectedVia: Array.from(viaNames),
-      };
+      if (!p) return [];
+      return [{ ...p, sharedConnections: viaNames.size, connectedVia: Array.from(viaNames) }];
     })
-    .filter(Boolean)
-    .sort((a, b) => b!.sharedConnections - a!.sharedConnections)
-    .slice(0, 10) as RecommendationResult[];
+    .sort((a, b) => b.sharedConnections - a.sharedConnections || a.name.localeCompare(b.name))
+    .slice(0, 10);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

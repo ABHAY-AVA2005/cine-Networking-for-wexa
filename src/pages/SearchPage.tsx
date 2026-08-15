@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, AlertCircle, Film, User } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -19,11 +19,14 @@ export function SearchPage() {
   const [searched, setSearched] = useState(false)
   const [industry, setIndustry] = useState("all")
   const navigate = useNavigate()
+  const requestId = useRef(0)
 
   const doSearch = useCallback(async (q: string, ind: string) => {
+    const currentRequest = ++requestId.current
     if (!q.trim()) {
       setResults([])
       setSearched(false)
+      setLoading(false)
       return
     }
     setLoading(true)
@@ -31,12 +34,14 @@ export function SearchPage() {
     setSearched(true)
     try {
       const data = await searchAPI(q, ind)
+      if (currentRequest !== requestId.current) return
       setResults(data)
     } catch (err) {
+      if (currentRequest !== requestId.current) return
       setError(err instanceof Error ? err.message : "Search failed")
       setResults([])
     } finally {
-      setLoading(false)
+      if (currentRequest === requestId.current) setLoading(false)
     }
   }, [])
 
@@ -129,7 +134,7 @@ export function SearchPage() {
         <div className="mx-auto max-w-2xl space-y-4">
           <h2 className="text-lg font-semibold text-muted-foreground text-center">Try searching for</h2>
           <div className="flex flex-wrap justify-center gap-2">
-            {["Nolan", "Baahubali", "Rajinikanth", "Mohanlal", "SRK", "Matrix"].map((term) => (
+            {["Nolan", "Baahubali", "Rajinikanth", "Mohanlal", "Shah Rukh", "Matrix"].map((term) => (
               <Badge key={term} variant="secondary" className="cursor-pointer text-sm py-1.5" onClick={() => setQuery(term)}>
                 {term}
               </Badge>

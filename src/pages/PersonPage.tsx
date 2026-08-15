@@ -51,10 +51,22 @@ export function PersonPage() {
 
   useEffect(() => {
     if (!id) return
+    let cancelled = false
+    setRecsLoading(true)
     getRecommendationsAPI(id)
-      .then(setRecs)
-      .catch(() => setRecs([]))
-      .finally(() => setRecsLoading(false))
+      .then((data) => { if (!cancelled) setRecs(data) })
+      .catch(() => { if (!cancelled) setRecs([]) })
+      .finally(() => { if (!cancelled) setRecsLoading(false) })
+    return () => { cancelled = true }
+  }, [id])
+
+  // Reset the path finder when navigating to a different person
+  useEffect(() => {
+    setPathQuery("")
+    setPathResults([])
+    setSelectedToId(null)
+    setPath(null)
+    setPathError(null)
   }, [id])
 
   // Filter people for path search (exclude current person)

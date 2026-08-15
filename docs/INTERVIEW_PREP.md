@@ -1,5 +1,9 @@
 # 🎯 CineGraph - CognoDB Take-Home Assignment Interview Preparation Guide
 
+> **Note on scope:** references to Next.js route handlers describe the target
+> full-stack design. The shipped app is a Vite SPA backed by the in-memory graph
+> engine; see the README for what is actually deployed.
+
 This document is specifically tailored for your follow-up interview with the **Wexa AI** engineering team. It synthesizes the exact evaluation criteria from `CognoDB-Assignment-2-Application.docx.pdf`, breaks down what the interviewers are looking for, and equips you with both **Executive Briefs** and **Line-by-Line Technical Explanations** to confidently defend every aspect of CineGraph.
 
 ---

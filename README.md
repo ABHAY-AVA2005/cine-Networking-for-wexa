@@ -4,6 +4,9 @@ A movie/TV talent-network explorer backed by a graph database (CognoDB / Neo4j-c
 Search for actors, directors, or movies; explore connections; find the shortest path
 between any two people; and get co-star-based recommendations.
 
+Deployment Link:
+https://cine-networking-for-wexa.vercel.app/
+
 ## Use Case
 
 CineGraph lets you explore the Hollywood talent network as a graph:

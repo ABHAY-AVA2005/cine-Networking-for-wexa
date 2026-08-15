@@ -7,12 +7,16 @@ import type { PathNode } from "@/lib/api"
 export function PathChain({ path }: { path: PathNode[] }) {
   if (path.length === 0) return null
 
+  // A path alternates Person → Movie → Person, so the degrees of separation are
+  // the number of people in the chain minus the starting person.
+  const degrees = Math.max(path.filter((node) => node.type === "person").length - 1, 0)
+
   return (
     <Card className="p-6">
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-semibold">Connection Path</h3>
-          <span className="text-sm text-muted-foreground">{path.length - 1} degree{path.length - 1 !== 1 ? "s" : ""} of separation</span>
+          <span className="text-sm text-muted-foreground">{degrees} degree{degrees !== 1 ? "s" : ""} of separation</span>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {path.map((node, idx) => (

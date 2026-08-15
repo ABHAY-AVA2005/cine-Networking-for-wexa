@@ -4,22 +4,44 @@
  * Loads the seed dataset into a CognoDB / Neo4j instance using parameterized
  * Cypher UNWIND + MERGE queries. Idempotent — safe to re-run.
  *
- * Usage (Node.js, requires neo4j-driver):
- *   npm install neo4j-driver
- *   npx tsx scripts/seed.ts
+ * Usage:
+ *   npm run seed
  *
- * Environment variables (set in .env.local or shell):
+ * Environment variables (read from .env.local, or the shell environment):
  *   NEO4J_URI=bolt+s://<instance>.cognodb.cloud
  *   NEO4J_USER=cognodb
  *   NEO4J_PASSWORD=<your-password>
  */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import neo4j from "neo4j-driver";
+import type { Driver } from "neo4j-driver";
 import seedData from "../src/data/seed.json";
 
-// These would be real env vars in a Node.js context
+loadEnvFile(resolve(dirname(fileURLToPath(import.meta.url)), "..", ".env.local"));
+
 const URI = process.env["NEO4J_URI"] ?? "";
 const USER = process.env["NEO4J_USER"] ?? "cognodb";
 const PASSWORD = process.env["NEO4J_PASSWORD"] ?? "";
+
+/** Populates process.env from a KEY=value file. Existing env vars win. */
+function loadEnvFile(path: string) {
+  let contents: string;
+  try {
+    contents = readFileSync(path, "utf8");
+  } catch {
+    return;
+  }
+  for (const line of contents.split("\n")) {
+    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawValue.replace(/^["']|["']$/g, "");
+  }
+}
 
 async function main() {
   if (!URI || !PASSWORD) {
@@ -28,8 +50,7 @@ async function main() {
     process.exit(1);
   }
 
-  const neo4j = await import("neo4j-driver");
-  const driver = neo4j.default.driver(URI, neo4j.default.auth.basic(USER, PASSWORD));
+  const driver = neo4j.driver(URI, neo4j.auth.basic(USER, PASSWORD));
 
   try {
     console.log("Connected to CognoDB. Seeding data...\n");
@@ -42,7 +63,8 @@ async function main() {
       SET p.name = person.name,
           p.bio = person.bio,
           p.imageUrl = person.imageUrl,
-          p.role = person.role
+          p.role = person.role,
+          p.industry = person.industry
     `, { people: seedData.people });
     console.log("  Done.");
 
@@ -54,7 +76,8 @@ async function main() {
       SET m.title = movie.title,
           m.year = movie.year,
           m.posterUrl = movie.posterUrl,
-          m.overview = movie.overview
+          m.overview = movie.overview,
+          m.industry = movie.industry
     `, { movies: seedData.movies });
     console.log("  Done.");
 
@@ -119,7 +142,7 @@ async function main() {
 }
 
 async function runQuery(
-  driver: import("neo4j-driver").Driver,
+  driver: Driver,
   cypher: string,
   params: Record<string, unknown>
 ): Promise<Record<string, unknown>[]> {
@@ -132,4 +155,7 @@ async function runQuery(
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
